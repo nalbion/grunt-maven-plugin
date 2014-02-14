@@ -76,6 +76,14 @@ public class CreateResourcesMojo extends BaseMavenGruntMojo {
     @Parameter(property = "filteredResources")
     private String[] filteredResources;
 
+	/**
+	 * Extra resource directories (not within &lt;jsSourceDirectory>) that should be
+	 * copied across to &lt;gruntBuildDirectory>
+	 */
+	@Parameter
+	private org.apache.maven.model.Resource[] extraResources;
+
+
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
 
@@ -96,7 +104,19 @@ public class CreateResourcesMojo extends BaseMavenGruntMojo {
     }
 
     private Element[] createResourceElements() {
-        List<Element> resourceElements = new ArrayList<Element>(2);
+	    int size = extraResources == null ? 2 : 2 + extraResources.length;
+        List<Element> resourceElements = new ArrayList<Element>(size);
+
+	    if( extraResources != null ) {
+	        for( org.apache.maven.model.Resource resource : extraResources ) {
+		        Element extraResourceElement = element(name("resource"),
+					element(name("directory"), resource.getDirectory()),
+		            element(name("includes"), createExtraResourceIncludeElements(resource)),
+		            element(name("filtering"), Boolean.toString(resource.isFiltering()))
+		        );
+		        resourceElements.add( extraResourceElement );
+	        }
+	    }
 
         Element normalResourcesElement = element(name("resource"),
                 element(name("directory"), sourceDirectory + "/" + jsSourceDirectory),
@@ -135,6 +155,21 @@ public class CreateResourcesMojo extends BaseMavenGruntMojo {
 
         return elements;
     }
+
+	/**
+	 * Create an array of Elements to store the <include>s
+	 */
+	private Element[] createExtraResourceIncludeElements( org.apache.maven.model.Resource resource ) {
+		List<String> includes = resource.getIncludes();
+		int i = includes.size();
+		Element[] includeElements = new Element[i];
+		while( i-- != 0 ) {
+			String include = includes.get(i);
+			includeElements[i] = element(name("include"), include);
+		}
+
+		return includeElements;
+	}
 
     private void createInnerPropertiesResource() {
 	    String finalName = mavenProject.getBuild().getFinalName();
